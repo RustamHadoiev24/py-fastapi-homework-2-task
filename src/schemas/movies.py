@@ -1,6 +1,6 @@
-from pydantic import BaseModel, ConfigDict
-from datetime import date
+import datetime
 from typing import List, Optional
+from pydantic import BaseModel, ConfigDict, field_validator, Field
 
 
 class CountrySchema(BaseModel):
@@ -31,7 +31,7 @@ class LanguageSchema(BaseModel):
 class MovieListItemSchema(BaseModel):
     id: int
     name: str
-    date: date
+    date: datetime.date
     score: float
     overview: str
     model_config = ConfigDict(from_attributes=True)
@@ -48,38 +48,46 @@ class MovieDetailSchema(MovieListItemSchema):
 
 
 class MovieCreateSchema(BaseModel):
-    name: str
-    date: date
-    score: float
-    overview: str
+    name: str = Field(min_length=1, max_length=255)
+    date: datetime.date
+    score: float = Field(ge=0, le=100)
+    overview: str = Field(min_length=1)
     status: str
-    budget: float
-    revenue: float
+    budget: float = Field(ge=0)
+    revenue: float = Field(ge=0)
     country: str
     genres: List[str]
     actors: List[str]
     languages: List[str]
 
+    @field_validator("date")
+    @classmethod
+    def date_not_in_future(cls, v: datetime.date) -> datetime.date:
+        if v > datetime.date.today():
+            raise ValueError("Date must not be in the future.")
+        return v
+
 
 class MovieUpdateSchema(BaseModel):
-    name: Optional[str] = None
-    date: Optional[date] = None
-    score: Optional[float] = None
-    overview: Optional[str] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    date: Optional[datetime.date] = None
+    score: Optional[float] = Field(default=None, ge=0, le=100)
+    overview: Optional[str] = Field(default=None, min_length=1)
     status: Optional[str] = None
-    budget: Optional[float] = None
-    revenue: Optional[float] = None
-    country: Optional[str] = None
-    genres: Optional[List[str]] = None
-    actors: Optional[List[str]] = None
-    languages: Optional[List[str]] = None
+    budget: Optional[float] = Field(default=None, ge=0)
+    revenue: Optional[float] = Field(default=None, ge=0)
+
+    @field_validator("date")
+    @classmethod
+    def date_not_in_future(cls, v: Optional[datetime.date]) -> Optional[datetime.date]:
+        if v and v > datetime.date.today():
+            raise ValueError("Date must not be in the future.")
+        return v
 
 
 class MovieListResponseSchema(BaseModel):
     movies: List[MovieListItemSchema]
     total_items: int
-    page: int
-    per_page: int
     total_pages: int
     prev_page: Optional[str]
     next_page: Optional[str]
